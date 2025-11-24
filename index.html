@@ -1227,8 +1227,8 @@
                     const ext = format === 'image/png' ? '.png' : '.jpg';
                     
                     // Tên file đơn giản: 0030_merged.jpg
-                    const paddedIndex = String((pairIndex + 1) * 2).padStart(4, '0');
-                    const name = `${paddedIndex}_merged${ext}`;
+                    const baseName = img2Data.name.replace(/\.[^/.]+$/, '');
+                    const name = `${baseName}_merged${ext}`;
                     
                     resolve({ url, name, blob, width: finalWidth, height: finalHeight });
                 }, format, quality);
