@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghép Trang Đôi Manga</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Ngăn chặn select text và drag ảnh */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        body.dragging-over::before {
+            content: '📁 Thả ảnh vào đây để thêm';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(102, 126, 234, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            color: white;
+            font-weight: bold;
+            pointer-events: none;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 30px;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+
+        .drop-zone p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone.has-images {
+            padding: 40px 20px;
+        }
+
+        .drop-zone.has-images p {
+            font-size: 1em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-info {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #3182ce;
+        }
+
+        select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .pairs-container {
+            margin-top: 30px;
+        }
+
+        .pair-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            position: relative;
+        }
+
+        .pair-row.processing {
+            border-color: #667eea;
+            background: #e8ebff;
+        }
+
+        .pair-header {
+            grid-column: 1 / -1;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .image-slot {
+            background: white;
+            border: 3px dashed #cbd5e0;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .image-slot.filled {
+            border-style: solid;
+            border-color: #48bb78;
+        }
+
+        .image-slot.drag-over {
+            border-color: #667eea;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .slot-label {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .slot-image {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ảnh được hiển thị dưới dạng background */
+        .image-display {
+            width: 100%;
+            height: 250px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 5px;
+            position: relative;
+            cursor: move;
+            overflow: hidden;
+        }
+
+        /* Lớp overlay để ngăn right-click và drag */
+        .image-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: transparent;
+            z-index: 1;
+        }
+
+        /* Disable right click cho ảnh */
+        .image-display, .image-overlay {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .draggable-handle {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: move;
+            z-index: 2;
+            font-size: 0.8em;
+        }
+
+        .image-info {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #666;
+            text-align: center;
+        }
+
+        .image-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            word-break: break-all;
+            font-size: 0.9em;
+        }
+
+        .slot-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .slot-controls button {
+            flex: 1;
+            padding: 6px 10px;
+            font-size: 0.85em;
+            min-width: 60px;
+        }
+
+        .slot-controls select {
+            flex: 1;
+            padding: 6px;
+            font-size: 0.85em;
+        }
+
+        .preview-slot {
+            background: white;
+            border: 3px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-slot.ready {
+            border-color: #48bb78;
+        }
+
+        .preview-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f7fafc;
+            border-radius: 5px;
+            min-height: 300px;
+            position: relative;
+        }
+
+        /* Preview cũng dùng background */
+        .preview-image {
+            width: 100%;
+            height: 400px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 5px;
+        }
+
+        .preview-placeholder {
+            color: #a0aec0;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .preview-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-controls button {
+            flex: 1;
+            padding: 10px;
+        }
+
+        .size-adjust {
+            margin-top: 8px;
+            padding: 8px;
+            background: #fff5e6;
+            border-radius: 5px;
+            border: 1px solid #ed8936;
+        }
+
+        .size-adjust label {
+            display: block;
+            font-size: 0.75em;
+            font-weight: bold;
+            color: #ed8936;
+            margin-bottom: 5px;
+        }
+
+        .size-inputs {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .size-inputs input {
+            width: 60px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .size-inputs span {
+            font-size: 0.75em;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .empty-state p {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            display: block;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            display: block;
+        }
+
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+            display: block;
+        }
+
+        .hint-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .hint-box strong {
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 1200px) {
+            .pair-row {
+                grid-template-columns: 1fr;
+            }
+
+            .pair-header {
+                grid-column: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div class="container">
+        <h1>🎴 Ghép Trang Đôi Manga</h1>
+        <p class="subtitle">Kéo thả ảnh vào bất kỳ đâu trên trang để thêm ảnh</p>
+        
+        <div class="hint-box">
+            <strong>💡 Mẹo:</strong> Bạn có thể kéo thả ảnh vào bất kỳ vị trí nào trên trang này, 
+            thậm chí khi đã có ảnh. Có thể thả lẻ từng ảnh một từ nhiều folder khác nhau!
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <p>📁 Kéo thả ảnh vào đây hoặc click để chọn</p>
+            <p style="font-size: 0.9em; color: #999;">Hỗ trợ: JPG, PNG, WebP | Có thể thả lẻ từng ảnh</p>
+            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Định dạng:</label>
+                <select id="formatSelect">
+                    <option value="image/jpeg">JPG</option>
+                    <option value="image/png">PNG</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Chất lượng:</label>
+                <select id="qualitySelect">
+                    <option value="1.0" selected>100%</option>
+                    <option value="0.99">99%</option>
+                    <option value="0.98">98%</option>
+                </select>
+            </div>
+
+            <button class="btn-success" id="mergeAllBtn">🔗 Ghép tất cả</button>
+            <button class="btn-primary" id="selectAllBtn">✅ Chọn tất cả</button>
+            <button class="btn-warning" id="deselectAllBtn">❌ Bỏ chọn tất cả</button>
+            <button class="btn-info" id="downloadAllBtn" style="display: none;">⬇️ Tải tất cả</button>
+            <button class="btn-danger" id="clearBtn">🗑️ Xóa tất cả</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="pairs-container" id="pairsContainer">
+            <div class="empty-state">
+                <p>📭 Chưa có ảnh nào</p>
+                <p style="font-size: 0.9em;">Kéo thả hoặc chọn ảnh để bắt đầu</p>
+                <p style="font-size: 0.85em; margin-top: 10px; color: #999;">Có thể thả lẻ từng ảnh, không cần phải chọn nhiều ảnh cùng lúc</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pica@9.0.1/dist/pica.min.js"></script>
+    <script>
+        // Disable right click globally
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        
+        // Prevent image drag
+        document.addEventListener('dragstart', e => {
+            if (e.target.tagName === 'IMG') {
+                e.preventDefault();
+            }
+        });
+
+        const pica = window.pica();
+        let images = [];
+        let mergedResults = {};
+        let dragCounter = 0;
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const pairsContainer = document.getElementById('pairsContainer');
+        const mergeAllBtn = document.getElementById('mergeAllBtn');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        const deselectAllBtn = document.getElementById('deselectAllBtn');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const status = document.getElementById('status');
+        const formatSelect = document.getElementById('formatSelect');
+        const qualitySelect = document.getElementById('qualitySelect');
+
+        // Drop zone events
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Full page drag and drop
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (dragCounter === 1) {
+                document.body.classList.add('dragging-over');
+            }
+        });
+
+        document.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                document.body.classList.remove('dragging-over');
+            }
+        });
+
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            document.body.classList.remove('dragging-over');
+            
+            // Only handle files dropped on body, not on image slots
+            if (!e.target.closest('.image-slot')) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        // Traditional drop zone
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+            
+            if (fileArray.length === 0) {
+                showStatus('Không có ảnh nào được chọn!', 'error');
+                return;
+            }
+
+            let processed = 0;
+            const startIndex = images.length;
+            
+            fileArray.forEach(file => {
+                const blobUrl = URL.createObjectURL(file);
+                const img = new Image();
+                
+                img.onload = () => {
+                    images.push({
+                        file: file,
+                        name: file.name,
+                        blobUrl: blobUrl,
+                        width: img.width,
+                        height: img.height,
+                        customWidth: img.width,
+                        customHeight: img.height,
+                        selected: true
+                    });
+                    
+                    processed++;
+                    if (processed === fileArray.length) {
+                        // Sort all images by name
+                        images.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+                        
+                        // Bỏ chọn ảnh cuối nếu tổng số lẻ
+                        if (images.length % 2 !== 0) {
+                            images[images.length - 1].selected = false;
+                        }
+                        
+                        // Update drop zone style
+                        if (images.length > 0) {
+                            dropZone.classList.add('has-images');
+                        }
+                        
+                        renderPairs();
+                        
+                        const newCount = fileArray.length;
+                        const pairCount = Math.floor(images.length / 2);
+                        showStatus(`✅ Đã thêm ${newCount} ảnh. Tổng: ${images.length} ảnh, ${pairCount} cặp sẵn sàng ghép.`, 'success');
+                    }
+                };
+                img.src = blobUrl;
+            });
+        }
+
+        function renderPairs() {
+            if (images.length === 0) {
+                pairsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>📭 Chưa có ảnh nào</p>
+                        <p style="font-size: 0.9em;">Kéo thả hoặc chọn ảnh để bắt đầu</p>
+                        <p style="font-size: 0.85em; margin-top: 10px; color: #999;">Có thể thả lẻ từng ảnh, không cần phải chọn nhiều ảnh cùng lúc</p>
+                    </div>
+                `;
+                dropZone.classList.remove('has-images');
+                return;
+            }
+
+            pairsContainer.innerHTML = '';
+            
+            const pairs = Math.ceil(images.length / 2);
+            
+            for (let pairIndex = 0; pairIndex < pairs; pairIndex++) {
+                const leftIndex = pairIndex * 2;
+                const rightIndex = pairIndex * 2 + 1;
+                const leftImg = images[leftIndex];
+                const rightImg = rightIndex < images.length ? images[rightIndex] : null;
+                
+                const pairDiv = document.createElement('div');
+                pairDiv.className = 'pair-row';
+                pairDiv.dataset.pairIndex = pairIndex;
+                
+                const canMerge = rightImg && leftImg.selected && rightImg.selected;
+                const statusText = !rightImg ? '⚠️ Thiếu ảnh thứ 2' : 
+                                   !canMerge ? '⚠️ Chưa chọn đủ 2 ảnh' : 
+                                   mergedResults[pairIndex] ? '✅ Đã ghép' : '⏳ Chờ ghép';
+                
+                pairDiv.innerHTML = `
+                    <div class="pair-header">
+                        📌 Cặp ${pairIndex + 1} <span style="font-size: 0.8em; color: #666; margin-left: auto;">${statusText}</span>
+                    </div>
+                    
+                    <div class="image-slot filled" data-slot="${pairIndex}.1" data-index="${leftIndex}">
+                        <div class="slot-label">Ảnh ${pairIndex + 1}.1 (Trái)</div>
+                        ${renderImageSlot(leftImg, leftIndex, `${pairIndex}.1`)}
+                    </div>
+                    
+                    <div class="image-slot ${rightImg ? 'filled' : ''}" data-slot="${pairIndex}.2" ${rightImg ? `data-index="${rightIndex}"` : ''}>
+                        <div class="slot-label">Ảnh ${pairIndex + 1}.2 (Phải)</div>
+                        ${rightImg ? renderImageSlot(rightImg, rightIndex, `${pairIndex}.2`) : '<div class="slot-image"><p style="color: #a0aec0;">Trống - Kéo ảnh vào hoặc thả thêm ảnh mới</p></div>'}
+                    </div>
+                    
+                    <div class="preview-slot ${canMerge ? 'ready' : ''}">
+                        <div class="slot-label">Preview Output</div>
+                        <div class="preview-content" id="preview-${pairIndex}">
+                            ${mergedResults[pairIndex] ? 
+                                `<div class="preview-image" style="background-image: url('${mergedResults[pairIndex].url}')"></div>` : 
+                                `<div class="preview-placeholder">${canMerge ? '⏳ Chờ ghép...' : '⚠️ Chưa đủ điều kiện ghép'}</div>`
+                            }
+                        </div>
+                        <div class="preview-controls">
+                            ${canMerge ? `
+                                <button class="btn-success" onclick="mergePair(${pairIndex})">🔗 Ghép ngay</button>
+                            ` : ''}
+                            ${mergedResults[pairIndex] ? `
+                                <button class="btn-primary" onclick="downloadPair(${pairIndex})">⬇️ Tải xuống</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                pairsContainer.appendChild(pairDiv);
+                
+                // Setup drag and drop for slots
+                setupSlotDragDrop(pairDiv);
+            }
+        }
+
+        function renderImageSlot(img, index, slot) {
+            const needsAdjustment = img.customWidth !== img.width || img.customHeight !== img.height;
+            
+            return `
+                <div class="slot-image">
+                    <div class="image-display" style="background-image: url('${img.blobUrl}')" data-index="${index}">
+                        <div class="image-overlay"></div>
+                        <div class="draggable-handle" draggable="true" ondragstart="handleImageDragStart(event, ${index})">⇄ Di chuyển</div>
+                    </div>
+                    <div class="image-name">${img.name}</div>
+                    <div class="image-info">
+                        ${img.customWidth} × ${img.customHeight} px
+                        ${needsAdjustment ? '<br><small>✏️ Đã điều chỉnh</small>' : ''}
+                    </div>
+                    ${needsAdjustment ? renderSizeAdjust(img, index) : ''}
+                </div>
+                <div class="slot-controls">
+                    <button class="btn-${img.selected ? 'success' : 'warning'} btn-sm" onclick="toggleSelect(${index})">${img.selected ? '✅ Đã chọn' : '❌ Bỏ qua'}</button>
+                    <select onchange="moveToSlot(${index}, this.value)" class="btn-sm">
+                        <option value="">Dời đến...</option>
+                        ${generateSlotOptions(index)}
+                    </select>
+                    <button class="btn-primary btn-sm" onclick="showSizeAdjust(${index})">⚙️</button>
+                    <button class="btn-danger btn-sm" onclick="removeImage(${index})">🗑️</button>
+                </div>
+            `;
+        }
+
+        function renderSizeAdjust(img, index) {
+            return `
+                <div class="size-adjust">
+                    <label>⚙️ Kích thước:</label>
+                    <div class="size-inputs">
+                        <input type="number" value="${img.customWidth}" onchange="updateSize(${index}, 'width', this.value)">
+                        <span>×</span>
+                        <input type="number" value="${img.customHeight}" onchange="updateSize(${index}, 'height', this.value)">
+                        <button class="btn-warning" onclick="resetSize(${index})" style="padding: 3px 6px; font-size: 0.75em;">↺</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateSlotOptions(currentIndex) {
+            let options = '';
+            const totalPairs = Math.ceil(images.length / 2);
+            
+            for (let i = 0; i < totalPairs; i++) {
+                const slot1 = `${i}.1`;
+                const slot2 = `${i}.2`;
+                
+                const index1 = i * 2;
+                const index2 = i * 2 + 1;
+                
+                if (currentIndex !== index1) {
+                    options += `<option value="${slot1}">Cặp ${i + 1}.1</option>`;
+                }
+                if (index2 < images.length && currentIndex !== index2) {
+                    options += `<option value="${slot2}">Cặp ${i + 1}.2</option>`;
+                }
+            }
+            
+            return options;
+        }
+
+        function setupSlotDragDrop(pairDiv) {
+            const slots = pairDiv.querySelectorAll('.image-slot');
+            
+            slots.forEach(slot => {
+                slot.addEventListener('dragover', handleSlotDragOver);
+                slot.addEventListener('drop', handleSlotDrop);
+                slot.addEventListener('dragleave', handleSlotDragLeave);
+            });
+        }
+
+        let draggedImageIndex = null;
+
+        function handleImageDragStart(event, index) {
+            draggedImageIndex = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.stopPropagation();
+        }
+
+        function handleSlotDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.add('drag-over');
+            return false;
+        }
+
+        function handleSlotDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleSlotDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const targetSlot = e.currentTarget.dataset.slot;
+            const targetIndex = e.currentTarget.dataset.index;
+            
+            e.currentTarget.classList.remove('drag-over');
+            
+            if (draggedImageIndex !== null && targetSlot) {
+                moveToSlotDirect(draggedImageIndex, targetSlot, targetIndex);
+                draggedImageIndex = null;
+            }
+            
+            return false;
+        }
+
+        function moveToSlot(fromIndex, toSlot) {
+            if (!toSlot) return;
+            
+            const [pairIndex, position] = toSlot.split('.');
+            const toIndex = parseInt(pairIndex) * 2 + (position === '1' ? 0 : 1);
+            
+            if (toIndex >= images.length) {
+                const temp = images[fromIndex];
+                images.splice(fromIndex, 1);
+                images.splice(toIndex - 1, 0, temp);
+            } else {
+                [images[fromIndex], images[toIndex]] = [images[toIndex], images[fromIndex]];
+            }
+            
+            mergedResults = {};
+            renderPairs();
+        }
+
+        function moveToSlotDirect(fromIndex, toSlot, targetIndex) {
+            if (targetIndex !== undefined && targetIndex !== '') {
+                const toIndex = parseInt(targetIndex);
+                [images[fromIndex], images[toIndex]] = [images[toIndex], images[fromIndex]];
+            } else {
+                const [pairIndex, position] = toSlot.split('.');
+                const toIndex = parseInt(pairIndex) * 2 + (position === '1' ? 0 : 1);
+                const temp = images[fromIndex];
+                images.splice(fromIndex, 1);
+                images.splice(toIndex, 0, temp);
+            }
+            
+            mergedResults = {};
+            renderPairs();
+        }
+
+        function toggleSelect(index) {
+            images[index].selected = !images[index].selected;
+            renderPairs();
+        }
+
+        function showSizeAdjust(index) {
+            const newWidth = prompt(`Nhập chiều rộng mới (hiện tại: ${images[index].customWidth}px):`, images[index].customWidth);
+            const newHeight = prompt(`Nhập chiều cao mới (hiện tại: ${images[index].customHeight}px):`, images[index].customHeight);
+            
+            if (newWidth) images[index].customWidth = parseInt(newWidth);
+            if (newHeight) images[index].customHeight = parseInt(newHeight);
+            
+            mergedResults = {};
+            renderPairs();
+        }
+
+        function updateSize(index, type, value) {
+            if (type === 'width') {
+                images[index].customWidth = parseInt(value);
+            } else {
+                images[index].customHeight = parseInt(value);
+            }
+            mergedResults = {};
+            renderPairs();
+        }
+
+        function resetSize(index) {
+            images[index].customWidth = images[index].width;
+            images[index].customHeight = images[index].height;
+            mergedResults = {};
+            renderPairs();
+        }
+
+        function removeImage(index) {
+            if (confirm('Xóa ảnh này?')) {
+                URL.revokeObjectURL(images[index].blobUrl);
+                images.splice(index, 1);
+                mergedResults = {};
+                renderPairs();
+                
+                if (images.length === 0) {
+                    showStatus('Đã xóa tất cả ảnh', 'info');
+                }
+            }
+        }
+
+        selectAllBtn.addEventListener('click', () => {
+            images.forEach(img => img.selected = true);
+            renderPairs();
+            showStatus('Đã chọn tất cả ảnh', 'success');
+        });
+
+        deselectAllBtn.addEventListener('click', () => {
+            images.forEach(img => img.selected = false);
+            renderPairs();
+            showStatus('Đã bỏ chọn tất cả ảnh', 'info');
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Bạn có chắc muốn xóa tất cả ảnh?')) {
+                images.forEach(img => URL.revokeObjectURL(img.blobUrl));
+                Object.values(mergedResults).forEach(result => URL.revokeObjectURL(result.url));
+                images = [];
+                mergedResults = {};
+                renderPairs();
+                downloadAllBtn.style.display = 'none';
+                hideStatus();
+            }
+        });
+
+        mergeAllBtn.addEventListener('click', async () => {
+            const pairs = Math.floor(images.length / 2);
+            let merged = 0;
+            
+            for (let i = 0; i < pairs; i++) {
+                const leftIndex = i * 2;
+                const rightIndex = i * 2 + 1;
+                const leftImg = images[leftIndex];
+                const rightImg = images[rightIndex];
+                
+                if (leftImg.selected && rightImg.selected) {
+                    await mergePair(i);
+                    merged++;
+                }
+            }
+            
+            showStatus(`Đã ghép thành công ${merged} cặp ảnh!`, 'success');
+            downloadAllBtn.style.display = merged > 0 ? 'inline-block' : 'none';
+        });
+
+        downloadAllBtn.addEventListener('click', () => {
+            Object.values(mergedResults).forEach((result, index) => {
+                setTimeout(() => {
+                    downloadImage(result.url, result.name);
+                }, index * 200);
+            });
+            showStatus('Đang tải xuống tất cả ảnh...', 'info');
+        });
+
+        async function mergePair(pairIndex) {
+            const leftIndex = pairIndex * 2;
+            const rightIndex = pairIndex * 2 + 1;
+            
+            if (rightIndex >= images.length) {
+                showStatus('Không đủ ảnh để ghép cặp này!', 'error');
+                return;
+            }
+            
+            const leftImg = images[leftIndex];
+            const rightImg = images[rightIndex];
+            
+            if (!leftImg.selected || !rightImg.selected) {
+                showStatus('Vui lòng chọn cả 2 ảnh trong cặp!', 'error');
+                return;
+            }
+            
+            const pairRow = document.querySelector(`[data-pair-index="${pairIndex}"]`);
+            if (pairRow) pairRow.classList.add('processing');
+            
+            try {
+                const mergedImage = await mergeTwoImages(leftImg, rightImg);
+                mergedResults[pairIndex] = mergedImage;
+                
+                const previewEl = document.getElementById(`preview-${pairIndex}`);
+                if (previewEl) {
+                    previewEl.innerHTML = `<div class="preview-image" style="background-image: url('${mergedImage.url}')"></div>`;
+                }
+                
+                renderPairs();
+                
+                const hasResults = Object.keys(mergedResults).length > 0;
+                downloadAllBtn.style.display = hasResults ? 'inline-block' : 'none';
+            } catch (error) {
+                console.error('Error merging:', error);
+                showStatus('Lỗi khi ghép ảnh: ' + error.message, 'error');
+            }
+            
+            if (pairRow) pairRow.classList.remove('processing');
+        }
+
+        async function resizeImageWithPica(img, targetWidth, targetHeight) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const tempCanvas = document.createElement('canvas');
+                const ctx = tempCanvas.getContext('2d');
+                
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                
+                pica.resize(tempCanvas, canvas, {
+                    quality: 3,
+                    alpha: true,
+                    unsharpAmount: 80,
+                    unsharpRadius: 0.6,
+                    unsharpThreshold: 2
+                }).then(() => {
+                    resolve(canvas);
+                });
+            });
+        }
+
+        async function mergeTwoImages(img1Data, img2Data) {
+            return new Promise(async (resolve) => {
+                const image1 = new Image();
+                const image2 = new Image();
+
+                image1.src = img1Data.blobUrl;
+                image2.src = img2Data.blobUrl;
+
+                await Promise.all([
+                    new Promise(res => image1.onload = res),
+                    new Promise(res => image2.onload = res)
+                ]);
+
+                let targetHeight1 = img1Data.customHeight;
+                let targetWidth1 = img1Data.customWidth;
+                let targetHeight2 = img2Data.customHeight;
+                let targetWidth2 = img2Data.customWidth;
+
+                const finalHeight = Math.max(targetHeight1, targetHeight2);
+                
+                if (targetHeight1 !== finalHeight) {
+                    targetWidth1 = Math.round((finalHeight / targetHeight1) * targetWidth1);
+                    targetHeight1 = finalHeight;
+                }
+                if (targetHeight2 !== finalHeight) {
+                    targetWidth2 = Math.round((finalHeight / targetHeight2) * targetWidth2);
+                    targetHeight2 = finalHeight;
+                }
+
+                let canvas1, canvas2;
+                
+                if (image1.width !== targetWidth1 || image1.height !== targetHeight1) {
+                    canvas1 = await resizeImageWithPica(image1, targetWidth1, targetHeight1);
+                } else {
+                    canvas1 = document.createElement('canvas');
+                    canvas1.width = image1.width;
+                    canvas1.height = image1.height;
+                    canvas1.getContext('2d').drawImage(image1, 0, 0);
+                }
+
+                if (image2.width !== targetWidth2 || image2.height !== targetHeight2) {
+                    canvas2 = await resizeImageWithPica(image2, targetWidth2, targetHeight2);
+                } else {
+                    canvas2 = document.createElement('canvas');
+                    canvas2.width = image2.width;
+                    canvas2.height = image2.height;
+                    canvas2.getContext('2d').drawImage(image2, 0, 0);
+                }
+
+                const finalCanvas = document.createElement('canvas');
+                const finalWidth = targetWidth1 + targetWidth2;
+                finalCanvas.width = finalWidth;
+                finalCanvas.height = finalHeight;
+                
+                const ctx = finalCanvas.getContext('2d');
+                ctx.drawImage(canvas1, 0, 0);
+                ctx.drawImage(canvas2, targetWidth1, 0);
+
+                const format = formatSelect.value;
+                const quality = parseFloat(qualitySelect.value);
+
+                finalCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const ext = format === 'image/png' ? '.png' : '.jpg';
+                    const name = img1Data.name.replace(/\.[^/.]+$/, '') + '_merged' + ext;
+                    
+                    resolve({ url, name, blob, width: finalWidth, height: finalHeight });
+                }, format, quality);
+            });
+        }
+
+        function downloadPair(pairIndex) {
+            if (mergedResults[pairIndex]) {
+                downloadImage(mergedResults[pairIndex].url, mergedResults[pairIndex].name);
+                showStatus('Đang tải xuống...', 'info');
+            }
+        }
+
+        function downloadImage(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = 'status ' + type;
+            
+            if (type !== 'error') {
+                setTimeout(hideStatus, 3000);
+            }
+        }
+
+        function hideStatus() {
+            status.className = 'status';
+            status.style.display = 'none';
+        }
+
+        window.addEventListener('beforeunload', () => {
+            images.forEach(img => URL.revokeObjectURL(img.blobUrl));
+            Object.values(mergedResults).forEach(result => URL.revokeObjectURL(result.url));
+        });
+    </script>
+</body>
+</html>
