@@ -17,10 +17,6 @@
             min-height: 100vh;
             padding: 20px;
             position: relative;
-        }
-
-        /* Ngăn chặn select text và drag ảnh */
-        body {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
@@ -122,6 +118,19 @@
             gap: 10px;
         }
 
+        .control-group label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .control-group input[type="number"] {
+            width: 100px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
         button {
             padding: 12px 24px;
             border: none;
@@ -179,6 +188,11 @@
             background: #3182ce;
         }
 
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 0.85em;
+        }
+
         select {
             padding: 10px 15px;
             border: 2px solid #ddd;
@@ -219,6 +233,23 @@
             gap: 10px;
         }
 
+        .swap-btn {
+            margin-left: auto;
+            padding: 8px 16px;
+            font-size: 1em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .swap-btn:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
         .image-slot {
             background: white;
             border: 3px dashed #cbd5e0;
@@ -257,7 +288,6 @@
             justify-content: center;
         }
 
-        /* Ảnh được hiển thị dưới dạng background */
         .image-display {
             width: 100%;
             height: 250px;
@@ -270,7 +300,6 @@
             overflow: hidden;
         }
 
-        /* Lớp overlay để ngăn right-click và drag */
         .image-overlay {
             position: absolute;
             top: 0;
@@ -281,7 +310,6 @@
             z-index: 1;
         }
 
-        /* Disable right click cho ảnh */
         .image-display, .image-overlay {
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -327,17 +355,12 @@
             flex-wrap: wrap;
         }
 
-        .slot-controls button {
+        .slot-controls button,
+        .slot-controls select {
             flex: 1;
             padding: 6px 10px;
             font-size: 0.85em;
             min-width: 60px;
-        }
-
-        .slot-controls select {
-            flex: 1;
-            padding: 6px;
-            font-size: 0.85em;
         }
 
         .preview-slot {
@@ -364,7 +387,6 @@
             position: relative;
         }
 
-        /* Preview cũng dùng background */
         .preview-image {
             width: 100%;
             height: 400px;
@@ -389,41 +411,6 @@
         .preview-controls button {
             flex: 1;
             padding: 10px;
-        }
-
-        .size-adjust {
-            margin-top: 8px;
-            padding: 8px;
-            background: #fff5e6;
-            border-radius: 5px;
-            border: 1px solid #ed8936;
-        }
-
-        .size-adjust label {
-            display: block;
-            font-size: 0.75em;
-            font-weight: bold;
-            color: #ed8936;
-            margin-bottom: 5px;
-        }
-
-        .size-inputs {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-
-        .size-inputs input {
-            width: 60px;
-            padding: 4px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.8em;
-        }
-
-        .size-inputs span {
-            font-size: 0.75em;
-            color: #666;
         }
 
         .empty-state {
@@ -474,6 +461,28 @@
 
         .hint-box strong {
             font-size: 1.2em;
+        }
+
+        .auto-merge-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff5e6;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #ed8936;
+        }
+
+        .auto-merge-option input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .auto-merge-option label {
+            cursor: pointer;
+            font-weight: bold;
+            color: #ed8936;
         }
 
         @media (max-width: 1200px) {
@@ -528,6 +537,17 @@
                 </select>
             </div>
 
+            <div class="control-group">
+                <label>Chiều cao output:</label>
+                <input type="number" id="targetHeightInput" placeholder="Auto" min="100" step="10">
+                <span style="font-size: 0.9em; color: #666;">px (để trống = gốc)</span>
+            </div>
+
+            <div class="auto-merge-option">
+                <input type="checkbox" id="autoMergeCheckbox" checked>
+                <label for="autoMergeCheckbox">⚡ Tự động ghép</label>
+            </div>
+
             <button class="btn-success" id="mergeAllBtn">🔗 Ghép tất cả</button>
             <button class="btn-primary" id="selectAllBtn">✅ Chọn tất cả</button>
             <button class="btn-warning" id="deselectAllBtn">❌ Bỏ chọn tất cả</button>
@@ -562,6 +582,7 @@
         let images = [];
         let mergedResults = {};
         let dragCounter = 0;
+        let isProcessingFiles = false;
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
@@ -574,15 +595,20 @@
         const status = document.getElementById('status');
         const formatSelect = document.getElementById('formatSelect');
         const qualitySelect = document.getElementById('qualitySelect');
+        const autoMergeCheckbox = document.getElementById('autoMergeCheckbox');
+        const targetHeightInput = document.getElementById('targetHeightInput');
 
         // Drop zone events
         dropZone.addEventListener('click', () => fileInput.click());
 
         // Full page drag and drop
+        let dragTimeout;
+        
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
+            clearTimeout(dragTimeout);
             dragCounter++;
-            if (dragCounter === 1) {
+            if (dragCounter === 1 && !e.target.closest('.image-slot')) {
                 document.body.classList.add('dragging-over');
             }
         });
@@ -590,8 +616,11 @@
         document.addEventListener('dragleave', (e) => {
             e.preventDefault();
             dragCounter--;
-            if (dragCounter === 0) {
-                document.body.classList.remove('dragging-over');
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                dragTimeout = setTimeout(() => {
+                    document.body.classList.remove('dragging-over');
+                }, 50);
             }
         });
 
@@ -602,15 +631,14 @@
         document.addEventListener('drop', (e) => {
             e.preventDefault();
             dragCounter = 0;
+            clearTimeout(dragTimeout);
             document.body.classList.remove('dragging-over');
             
-            // Only handle files dropped on body, not on image slots
             if (!e.target.closest('.image-slot')) {
                 handleFiles(e.dataTransfer.files);
             }
         });
 
-        // Traditional drop zone
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
@@ -628,18 +656,41 @@
 
         fileInput.addEventListener('change', (e) => {
             handleFiles(e.target.files);
+            e.target.value = '';
         });
 
+        function fileExists(file) {
+            return images.some(img => 
+                img.name === file.name && 
+                img.file.size === file.size &&
+                img.file.lastModified === file.lastModified
+            );
+        }
+
         function handleFiles(files) {
-            const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
+            if (isProcessingFiles) {
+                return;
+            }
+            
+            isProcessingFiles = true;
+            
+            const fileArray = Array.from(files).filter(file => {
+                if (!file.type.startsWith('image/')) {
+                    return false;
+                }
+                if (fileExists(file)) {
+                    return false;
+                }
+                return true;
+            });
             
             if (fileArray.length === 0) {
-                showStatus('Không có ảnh nào được chọn!', 'error');
+                isProcessingFiles = false;
+                showStatus('Không có ảnh mới nào được thêm!', 'info');
                 return;
             }
 
             let processed = 0;
-            const startIndex = images.length;
             
             fileArray.forEach(file => {
                 const blobUrl = URL.createObjectURL(file);
@@ -659,15 +710,12 @@
                     
                     processed++;
                     if (processed === fileArray.length) {
-                        // Sort all images by name
                         images.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
                         
-                        // Bỏ chọn ảnh cuối nếu tổng số lẻ
                         if (images.length % 2 !== 0) {
                             images[images.length - 1].selected = false;
                         }
                         
-                        // Update drop zone style
                         if (images.length > 0) {
                             dropZone.classList.add('has-images');
                         }
@@ -676,11 +724,50 @@
                         
                         const newCount = fileArray.length;
                         const pairCount = Math.floor(images.length / 2);
-                        showStatus(`✅ Đã thêm ${newCount} ảnh. Tổng: ${images.length} ảnh, ${pairCount} cặp sẵn sàng ghép.`, 'success');
+                        showStatus(`✅ Đã thêm ${newCount} ảnh. Tổng: ${images.length} ảnh, ${pairCount} cặp.`, 'success');
+                        
+                        if (autoMergeCheckbox.checked) {
+                            setTimeout(() => {
+                                autoMergeNewPairs();
+                            }, 300);
+                        }
+                        
+                        isProcessingFiles = false;
                     }
                 };
+                
+                img.onerror = () => {
+                    processed++;
+                    if (processed === fileArray.length) {
+                        isProcessingFiles = false;
+                    }
+                };
+                
                 img.src = blobUrl;
             });
+        }
+
+        async function autoMergeNewPairs() {
+            const pairs = Math.floor(images.length / 2);
+            let merged = 0;
+            
+            for (let i = 0; i < pairs; i++) {
+                if (!mergedResults[i]) {
+                    const leftIndex = i * 2;
+                    const rightIndex = i * 2 + 1;
+                    const leftImg = images[leftIndex];
+                    const rightImg = images[rightIndex];
+                    
+                    if (leftImg.selected && rightImg.selected) {
+                        await mergePair(i);
+                        merged++;
+                    }
+                }
+            }
+            
+            if (merged > 0) {
+                downloadAllBtn.style.display = 'inline-block';
+            }
         }
 
         function renderPairs() {
@@ -715,33 +802,40 @@
                                    !canMerge ? '⚠️ Chưa chọn đủ 2 ảnh' : 
                                    mergedResults[pairIndex] ? '✅ Đã ghép' : '⏳ Chờ ghép';
                 
+                // LAYOUT: Ảnh 2 - Ảnh 1 - Preview
                 pairDiv.innerHTML = `
                     <div class="pair-header">
-                        📌 Cặp ${pairIndex + 1} <span style="font-size: 0.8em; color: #666; margin-left: auto;">${statusText}</span>
+                        📌 Cặp ${pairIndex + 1}
+                        <span style="font-size: 0.8em; color: #666;">${statusText}</span>
+                        ${rightImg ? `<button class="swap-btn" onclick="swapPair(${pairIndex})">↔️ Đổi chỗ</button>` : ''}
                     </div>
                     
+                    ${rightImg ? `
+                    <div class="image-slot filled" data-slot="${pairIndex}.2" data-index="${rightIndex}">
+                        <div class="slot-label">Ảnh ${pairIndex + 1}.2</div>
+                        ${renderImageSlot(rightImg, rightIndex, `${pairIndex}.2`)}
+                    </div>
+                    ` : `
+                    <div class="image-slot" data-slot="${pairIndex}.2">
+                        <div class="slot-label">Ảnh ${pairIndex + 1}.2</div>
+                        <div class="slot-image"><p style="color: #a0aec0;">Trống</p></div>
+                    </div>
+                    `}
+                    
                     <div class="image-slot filled" data-slot="${pairIndex}.1" data-index="${leftIndex}">
-                        <div class="slot-label">Ảnh ${pairIndex + 1}.1 (Trái)</div>
+                        <div class="slot-label">Ảnh ${pairIndex + 1}.1</div>
                         ${renderImageSlot(leftImg, leftIndex, `${pairIndex}.1`)}
                     </div>
                     
-                    <div class="image-slot ${rightImg ? 'filled' : ''}" data-slot="${pairIndex}.2" ${rightImg ? `data-index="${rightIndex}"` : ''}>
-                        <div class="slot-label">Ảnh ${pairIndex + 1}.2 (Phải)</div>
-                        ${rightImg ? renderImageSlot(rightImg, rightIndex, `${pairIndex}.2`) : '<div class="slot-image"><p style="color: #a0aec0;">Trống - Kéo ảnh vào hoặc thả thêm ảnh mới</p></div>'}
-                    </div>
-                    
                     <div class="preview-slot ${canMerge ? 'ready' : ''}">
-                        <div class="slot-label">Preview Output</div>
+                        <div class="slot-label">Preview</div>
                         <div class="preview-content" id="preview-${pairIndex}">
                             ${mergedResults[pairIndex] ? 
                                 `<div class="preview-image" style="background-image: url('${mergedResults[pairIndex].url}')"></div>` : 
-                                `<div class="preview-placeholder">${canMerge ? '⏳ Chờ ghép...' : '⚠️ Chưa đủ điều kiện ghép'}</div>`
+                                `<div class="preview-placeholder">${canMerge ? '⏳ Chờ ghép...' : '⚠️ Chưa đủ điều kiện'}</div>`
                             }
                         </div>
                         <div class="preview-controls">
-                            ${canMerge ? `
-                                <button class="btn-success" onclick="mergePair(${pairIndex})">🔗 Ghép ngay</button>
-                            ` : ''}
                             ${mergedResults[pairIndex] ? `
                                 <button class="btn-primary" onclick="downloadPair(${pairIndex})">⬇️ Tải xuống</button>
                             ` : ''}
@@ -750,15 +844,11 @@
                 `;
                 
                 pairsContainer.appendChild(pairDiv);
-                
-                // Setup drag and drop for slots
                 setupSlotDragDrop(pairDiv);
             }
         }
 
         function renderImageSlot(img, index, slot) {
-            const needsAdjustment = img.customWidth !== img.width || img.customHeight !== img.height;
-            
             return `
                 <div class="slot-image">
                     <div class="image-display" style="background-image: url('${img.blobUrl}')" data-index="${index}">
@@ -768,32 +858,15 @@
                     <div class="image-name">${img.name}</div>
                     <div class="image-info">
                         ${img.customWidth} × ${img.customHeight} px
-                        ${needsAdjustment ? '<br><small>✏️ Đã điều chỉnh</small>' : ''}
                     </div>
-                    ${needsAdjustment ? renderSizeAdjust(img, index) : ''}
                 </div>
                 <div class="slot-controls">
-                    <button class="btn-${img.selected ? 'success' : 'warning'} btn-sm" onclick="toggleSelect(${index})">${img.selected ? '✅ Đã chọn' : '❌ Bỏ qua'}</button>
-                    <select onchange="moveToSlot(${index}, this.value)" class="btn-sm">
+                    <select onchange="moveToSlot(${index}, this.value)">
                         <option value="">Dời đến...</option>
                         ${generateSlotOptions(index)}
                     </select>
-                    <button class="btn-primary btn-sm" onclick="showSizeAdjust(${index})">⚙️</button>
+                    <button class="btn-${img.selected ? 'success' : 'warning'} btn-sm" onclick="toggleSelect(${index})">${img.selected ? '✅ Đã chọn' : '❌ Bỏ qua'}</button>
                     <button class="btn-danger btn-sm" onclick="removeImage(${index})">🗑️</button>
-                </div>
-            `;
-        }
-
-        function renderSizeAdjust(img, index) {
-            return `
-                <div class="size-adjust">
-                    <label>⚙️ Kích thước:</label>
-                    <div class="size-inputs">
-                        <input type="number" value="${img.customWidth}" onchange="updateSize(${index}, 'width', this.value)">
-                        <span>×</span>
-                        <input type="number" value="${img.customHeight}" onchange="updateSize(${index}, 'height', this.value)">
-                        <button class="btn-warning" onclick="resetSize(${index})" style="padding: 3px 6px; font-size: 0.75em;">↺</button>
-                    </div>
                 </div>
             `;
         }
@@ -882,6 +955,13 @@
             
             mergedResults = {};
             renderPairs();
+            
+            // Tự động ghép lại
+            if (autoMergeCheckbox.checked) {
+                setTimeout(() => {
+                    autoMergeNewPairs();
+                }, 300);
+            }
         }
 
         function moveToSlotDirect(fromIndex, toSlot, targetIndex) {
@@ -898,38 +978,40 @@
             
             mergedResults = {};
             renderPairs();
+            
+            // Tự động ghép lại
+            if (autoMergeCheckbox.checked) {
+                setTimeout(() => {
+                    autoMergeNewPairs();
+                }, 300);
+            }
+        }
+
+        async function swapPair(pairIndex) {
+            const leftIndex = pairIndex * 2;
+            const rightIndex = pairIndex * 2 + 1;
+            
+            if (rightIndex < images.length) {
+                [images[leftIndex], images[rightIndex]] = [images[rightIndex], images[leftIndex]];
+                
+                delete mergedResults[pairIndex];
+                
+                renderPairs();
+                
+                // Tự động ghép lại sau khi swap
+                if (autoMergeCheckbox.checked) {
+                    setTimeout(async () => {
+                        await mergePair(pairIndex);
+                        showStatus(`✅ Đã đổi chỗ và ghép lại cặp ${pairIndex + 1}`, 'success');
+                    }, 300);
+                } else {
+                    showStatus(`✅ Đã đổi chỗ 2 ảnh trong cặp ${pairIndex + 1}`, 'success');
+                }
+            }
         }
 
         function toggleSelect(index) {
             images[index].selected = !images[index].selected;
-            renderPairs();
-        }
-
-        function showSizeAdjust(index) {
-            const newWidth = prompt(`Nhập chiều rộng mới (hiện tại: ${images[index].customWidth}px):`, images[index].customWidth);
-            const newHeight = prompt(`Nhập chiều cao mới (hiện tại: ${images[index].customHeight}px):`, images[index].customHeight);
-            
-            if (newWidth) images[index].customWidth = parseInt(newWidth);
-            if (newHeight) images[index].customHeight = parseInt(newHeight);
-            
-            mergedResults = {};
-            renderPairs();
-        }
-
-        function updateSize(index, type, value) {
-            if (type === 'width') {
-                images[index].customWidth = parseInt(value);
-            } else {
-                images[index].customHeight = parseInt(value);
-            }
-            mergedResults = {};
-            renderPairs();
-        }
-
-        function resetSize(index) {
-            images[index].customWidth = images[index].width;
-            images[index].customHeight = images[index].height;
-            mergedResults = {};
             renderPairs();
         }
 
@@ -991,11 +1073,20 @@
         });
 
         downloadAllBtn.addEventListener('click', () => {
-            Object.values(mergedResults).forEach((result, index) => {
+            let downloadCount = 0;
+            const results = Object.entries(mergedResults).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+            
+            results.forEach(([pairIndex, result], index) => {
                 setTimeout(() => {
                     downloadImage(result.url, result.name);
-                }, index * 200);
+                    downloadCount++;
+                    
+                    if (downloadCount === results.length) {
+                        showStatus(`✅ Đã tải xuống ${downloadCount} ảnh!`, 'success');
+                    }
+                }, index * 300);
             });
+            
             showStatus('Đang tải xuống tất cả ảnh...', 'info');
         });
 
@@ -1020,7 +1111,7 @@
             if (pairRow) pairRow.classList.add('processing');
             
             try {
-                const mergedImage = await mergeTwoImages(leftImg, rightImg);
+                const mergedImage = await mergeTwoImages(rightImg, leftImg, pairIndex);
                 mergedResults[pairIndex] = mergedImage;
                 
                 const previewEl = document.getElementById(`preview-${pairIndex}`);
@@ -1065,7 +1156,7 @@
             });
         }
 
-        async function mergeTwoImages(img1Data, img2Data) {
+        async function mergeTwoImages(img1Data, img2Data, pairIndex) {
             return new Promise(async (resolve) => {
                 const image1 = new Image();
                 const image2 = new Image();
@@ -1083,8 +1174,11 @@
                 let targetHeight2 = img2Data.customHeight;
                 let targetWidth2 = img2Data.customWidth;
 
-                const finalHeight = Math.max(targetHeight1, targetHeight2);
+                // Lấy chiều cao target từ input (nếu có)
+                const userTargetHeight = parseInt(targetHeightInput.value);
+                const finalHeight = userTargetHeight > 0 ? userTargetHeight : Math.max(targetHeight1, targetHeight2);
                 
+                // Tính lại width theo tỉ lệ
                 if (targetHeight1 !== finalHeight) {
                     targetWidth1 = Math.round((finalHeight / targetHeight1) * targetWidth1);
                     targetHeight1 = finalHeight;
@@ -1120,6 +1214,8 @@
                 finalCanvas.height = finalHeight;
                 
                 const ctx = finalCanvas.getContext('2d');
+                
+                // Ghép: canvas1 (ảnh 2) bên trái, canvas2 (ảnh 1) bên phải
                 ctx.drawImage(canvas1, 0, 0);
                 ctx.drawImage(canvas2, targetWidth1, 0);
 
@@ -1129,7 +1225,10 @@
                 finalCanvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
                     const ext = format === 'image/png' ? '.png' : '.jpg';
-                    const name = img1Data.name.replace(/\.[^/.]+$/, '') + '_merged' + ext;
+                    
+                    // Tên file đơn giản: 0030_merged.jpg
+                    const paddedIndex = String((pairIndex + 1) * 2).padStart(4, '0');
+                    const name = `${paddedIndex}_merged${ext}`;
                     
                     resolve({ url, name, blob, width: finalWidth, height: finalHeight });
                 }, format, quality);
